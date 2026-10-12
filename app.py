@@ -178,7 +178,7 @@ with tab1:
     base_interest_rate = 0.06
     interest_expense = total_debt_input * base_interest_rate
     principal_repayment = loan_amount_input * 0.10
-    debt_service = interest_expense + principal_repayment
+    debt_service = max(interest_expense + principal_repayment, 1.0) # Prevent division by zero
     
     dscr_list = []
     icr_list = []
@@ -191,7 +191,7 @@ with tab1:
         stressed_ebitda = max(ebitda_input - carbon_cost_hkd, 10.0)
         
         dscr = stressed_ebitda / debt_service
-        icr = stressed_ebitda / interest_expense
+        icr = stressed_ebitda / max(interest_expense, 1.0)
         
         dscr_list.append(dscr)
         icr_list.append(icr)
@@ -271,7 +271,7 @@ with tab1:
                 d = st_ebitda / debt_service
                 if d < min_d: 
                     min_d = d
-            row.append(round(min_d, 2))
+            row.append(round(float(min_d), 2))
         matrix_data.append(row)
         
     fig_heat = px.imshow(
@@ -280,8 +280,7 @@ with tab1:
         y=[str(t) + " USD/t" for t in tax_range],
         labels=dict(x="Green CapEx Ratio", y="Carbon Tax Scenario", color="Min DSCR (x)"),
         text_auto=True,
-        color_continuousscale="RdYlGn",
-        range_color=[0.8, 2.5]
+        color_continuousscale="RdYlGn"
     )
     fig_heat.update_layout(
         height=340, 

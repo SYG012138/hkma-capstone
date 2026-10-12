@@ -5,10 +5,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # ==========================================
-# PAGE CONFIGURATION & STYLING
+# PAGE CONFIGURATION & LUXURY STYLING
 # ==========================================
 st.set_page_config(
-    page_title="HKMA GS-2 Corporate Transition Risk & Underwriting Dashboard",
+    page_title="HKMA GS-2 Corporate Transition & Underwriting Platform",
     page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -16,30 +16,42 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* Global App Background & Font */
+    .stApp {
+        background-color: #f8fafc;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    /* Header Typography */
     .main-header {
-        font-size: 2.2rem;
-        font-weight: 700;
+        font-size: 2.3rem;
+        font-weight: 800;
         color: #0f172a;
-        margin-bottom: 0.2rem;
+        letter-spacing: -0.025em;
+        margin-bottom: 0.1rem;
     }
     .sub-header {
         font-size: 1.1rem;
-        color: #475569;
-        margin-bottom: 1.5rem;
+        color: #64748b;
+        font-weight: 400;
+        margin-bottom: 1.8rem;
     }
+    
+    /* Enterprise Card Styling */
     .card {
-        padding: 1.2rem;
-        border-radius: 0.5rem;
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 1rem;
-    }
-    .metric-card {
+        padding: 1.5rem;
+        border-radius: 0.75rem;
         background-color: #ffffff;
-        border: 1px solid #cbd5e1;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        text-align: center;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+        margin-bottom: 1.2rem;
+    }
+    
+    /* Section Divider */
+    hr {
+        margin: 2rem 0;
+        border: none;
+        border-top: 1px solid #e2e8f0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -117,8 +129,8 @@ USD_HKD = 7.8
 # ==========================================
 # MAIN TITLE & OVERVIEW
 # ==========================================
-st.markdown('<p class="main-header">🏦 Credit Risk Assessment & Underwriting Design</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Corporate Transition Framework under HKMA SPM GS-2 Guidelines & IFRS 9 Staging</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">🏦 Corporate Transition Risk & Underwriting Platform</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Automated Credit Assessment, Stress Testing & SLL Pricing under HKMA SPM GS-2 Guidelines</p>', unsafe_allow_html=True)
 
 # ==========================================
 # TABS SETUP
@@ -148,7 +160,14 @@ with tab1:
         alignment_status = "🟢 Taxonomy Aligned (Green)" if is_fully_aligned else "🔴 Non-Aligned (Transition/Brown)"
         st.metric("Taxonomy Status", alignment_status)
 
-    st.markdown("---")
+    with st.expander("📖 View HKMA SPM GS-2 & IFRS 9 Methodology & Regulatory Details"):
+        st.markdown("""
+        - **HKMA Supervisory Policy Manual (SPM) GS-2**: Focuses on Climate Risk Management, requiring authorized institutions to robustly assess transition risks and carbon tax financial sensitivities.
+        - **Phase 2A Taxonomy Alignment**: Requires Green CapEx $\ge 30\%$ and SBTi 5-year reduction target $\ge 20\%$ to qualify as Taxonomy Aligned.
+        - **IFRS 9 Staging Trigger**: A Significant Increase in Credit Risk (SICR) forces migration from Stage 1 (12-month ECL) to Stage 2 (Lifetime ECL) if DSCR drops below $1.25\times$ or if the corporate transition plan is non-aligned.
+        """)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("### 2. Forward-Looking 5-Year Stress Testing (Carbon Tax Shock)")
     
     years = [f"Year {i}" for i in range(1, 6)]
@@ -192,7 +211,7 @@ with tab1:
     min_dscr = min(dscr_list)
     sicr_triggered = (min_dscr < 1.25) or (not is_fully_aligned)
     
-    st.markdown("---")
+    st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("### 3. IFRS 9 Staging & SICR Trigger Assessment")
     if sicr_triggered:
         st.error(
@@ -207,7 +226,7 @@ with tab1:
             "The corporate borrower maintains robust forward-looking debt service coverage (DSCR ≥ 1.25x) and satisfies HKMA Phase 2A Taxonomy alignment criteria."
         )
 
-    st.markdown("---")
+    st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("### 4. 5-Year DSCR Trend Visualization")
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -224,9 +243,53 @@ with tab1:
         yaxis_title="Debt Service Coverage Ratio (DSCR)",
         yaxis=dict(range=[0, max(max(dscr_list) + 0.5, 2.0)]),
         margin=dict(l=20, r=20, t=30, b=20),
-        height=380
+        height=380,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("### 5. Sensitivity Analysis: Carbon Tax vs. Green CapEx Matrix")
+    st.markdown("Evaluating minimum projected DSCR across varying carbon tax shocks and green capex commitment levels.")
+    
+    tax_range = [30, 60, 90, 120, 150]
+    capex_range = [10, 20, 30, 40, 50]
+    matrix_data = []
+    for c_tax in tax_range:
+        row = []
+        for g_capex in capex_range:
+            aligned = g_capex >= 30.0 and sbti_input >= 20.0
+            red_rate = (sbti_input / 100.0) / 5.0 if aligned else 0.01
+            em = emissions_input
+            min_d = 999.0
+            for yr_idx in range(5):
+                if yr_idx > 0: 
+                    em *= (1.0 - red_rate)
+                c_cost = (em * c_tax * USD_HKD) / 1e6
+                st_ebitda = max(ebitda_input - c_cost, 10.0)
+                d = st_ebitda / debt_service
+                if d < min_d: 
+                    min_d = d
+            row.append(round(min_d, 2))
+        matrix_data.append(row)
+        
+    fig_heat = px.imshow(
+        matrix_data,
+        x=[str(x) + "%" for x in capex_range],
+        y=[str(t) + " USD/t" for t in tax_range],
+        labels=dict(x="Green CapEx Ratio", y="Carbon Tax Scenario", color="Min DSCR (x)"),
+        text_auto=True,
+        color_continuousscale="RdYlGn",
+        range_color=[0.8, 2.5]
+    )
+    fig_heat.update_layout(
+        height=340, 
+        margin=dict(l=20, r=20, t=20, b=20),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    st.plotly_chart(fig_heat, use_container_width=True)
 
 # ==========================================
 # TAB 2: UNDERWRITING STRUCTURING & SUBSIDIES
@@ -272,9 +335,8 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("---")
+    st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("### 2. HKMA Green and Sustainable Finance (GSF) Grant Scheme Track II Subsidy Calculator")
-    st.markdown("Under HKMA GSF Grant Scheme Track II, eligible bond issuers and loan borrowers can apply for subsidies covering external review expenses.")
     
     col_g1, col_g2 = st.columns(2)
     with col_g1:
@@ -297,6 +359,41 @@ with tab2:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("### 3. Export Credit Assessment Memorandum")
+    
+    memo_content = f"""==================================================
+CREDIT ASSESSMENT & UNDERWRITING MEMORANDUM
+Project: HKMA SPM GS-2 Corporate Transition
+Company: {selected_company}
+==================================================
+
+1. FINANCIAL & CLIMATE PROFILE:
+- Revenue: HKD {rev_input:,.1f} M
+- EBITDA: HKD {ebitda_input:,.1f} M
+- Total Debt: HKD {total_debt_input:,.1f} M
+- Subject Loan Amount: HKD {loan_amount_input:,.1f} M
+- Scope 1 & 2 Emissions: {emissions_input:,.0f} tCO2e
+- SBTi Target: {sbti_input}% | Green CapEx: {green_capex_input}%
+- Carbon Tax Shock: {carbon_tax_input} USD/ton
+
+2. RISK & STRESS TESTING RESULTS:
+- Taxonomy Alignment: {'Aligned' if is_fully_aligned else 'Non-Aligned'}
+- Minimum Projected DSCR (5-Year): {min_dscr:.2f}x
+- IFRS 9 Staging Status: {'Stage 2 (Lifetime ECL) - SICR Triggered' if sicr_triggered else 'Stage 1 (12-Month ECL)'}
+
+3. SLL PRICING & SUBSIDY STRUCTURE:
+- Final Loan Margin: {final_margin_bps:.0f} bps ({pricing_status})
+- HKMA GSF Grant Subsidy: HKD {calculated_grant:,.2f}
+==================================================
+"""
+    st.download_button(
+        label="📥 Download Official Credit Assessment Memo (TXT)",
+        data=memo_content,
+        file_name=f"Credit_Memo_{selected_company.replace(' ', '_')}.txt",
+        mime="text/plain"
+    )
+
 # ==========================================
 # TAB 3: PRACTITIONER FEEDBACK SURVEY
 # ==========================================
@@ -304,6 +401,9 @@ with tab3:
     st.markdown("### 📝 Practitioner Feedback Survey & Evaluation")
     st.markdown("Please evaluate the usability, risk efficacy, and commercial feasibility of this HKMA SPM GS-2 automated underwriting dashboard for institutional banking deployment.")
     
+    if "feedback_list" not in st.session_state:
+        st.session_state.feedback_list = []
+
     with st.form("feedback_form"):
         st.markdown("#### Rate the following core dimensions (1 = Poor, 5 = Excellent):")
         
@@ -333,12 +433,35 @@ with tab3:
         submitted = st.form_submit_button("Submit Practitioner Feedback")
         
         if submitted:
-            st.success("🎉 Thank you! Your practitioner evaluation has been successfully recorded for capstone analysis and validation.")
-            st.balloons()
-            st.json({
-                "Role": practitioner_role,
-                "Clarity Rating": clarity_rating,
-                "Risk Efficacy Rating": efficacy_rating,
-                "Commercial Feasibility Rating": feasibility_rating,
-                "Comments": comments
+            st.session_state.feedback_list.append({
+                "role": practitioner_role,
+                "clarity": clarity_rating,
+                "efficacy": efficacy_rating,
+                "feasibility": feasibility_rating,
+                "comments": comments
             })
+            st.success("🎉 Thank you! Your practitioner evaluation has been successfully recorded for capstone analysis.")
+            st.balloons()
+
+    # Feedback Analytics Dashboard
+    if st.session_state.feedback_list:
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown("### 📊 Practitioner Feedback Analytics Dashboard")
+        df_fb = pd.DataFrame(st.session_state.feedback_list)
+        
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            st.metric("Total Submissions", len(df_fb))
+        with col_f2:
+            st.metric("Avg Clarity Rating", f"{df_fb['clarity'].mean():.1f} / 5.0")
+        with col_f3:
+            st.metric("Avg Risk Efficacy", f"{df_fb['efficacy'].mean():.1f} / 5.0")
+            
+        st.markdown("#### Recent Practitioner Comments:")
+        for idx, row in df_fb.iterrows():
+            st.markdown(f"""
+            <div class="card" style="padding: 1rem; margin-bottom: 0.8rem;">
+                <b>[{row['role']}]</b> &nbsp;|&nbsp; Clarity: {row['clarity']}/5 | Efficacy: {row['efficacy']}/5 | Feasibility: {row['feasibility']}/5<br>
+                <p style="color: #475569; margin-top: 0.4rem; margin-bottom: 0;"><i>"{row['comments'] if row['comments'] else 'No qualitative comments provided.'}"</i></p>
+            </div>
+            """, unsafe_allow_html=True)

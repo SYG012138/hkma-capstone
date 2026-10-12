@@ -214,11 +214,13 @@ with tab1:
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown("### 3. IFRS 9 Staging & SICR Trigger Assessment")
     if sicr_triggered:
+        dscr_msg = f"Minimum projected DSCR ({round(min_dscr, 2)}x) is below the 1.25x prudential threshold" if min_dscr < 1.25 else ""
+        tax_msg = "Corporate Transition Plan is Non-Aligned with HKMA Phase 2A Taxonomy." if not is_fully_aligned else ""
+        connector_msg = " and/or " if (min_dscr < 1.25 and not is_fully_aligned) else ""
+        
         st.error(
             f"🚨 **IFRS 9 SICR TRIGGER WARNING: MIGRATION TO STAGE 2 (Lifetime ECL) REQUIRED**\n\n"
-            f"Reason: {'Minimum projected DSCR (' + str(round(min_dscr, 2)) + 'x) is below the 1.25x prudential threshold' if min_dscr < 1.25 else ''}"
-            f"{' and/or ' if (min_dscr < 1.25 and not is_fully_aligned) else ''}"
-            f"{'Corporate Transition Plan is Non-Aligned with HKMA Phase 2A Taxonomy.' if not is_fully_aligned else ''}"
+            f"Reason: {dscr_msg}{connector_msg}{tax_msg}"
         )
     else:
         st.success(
@@ -266,71 +268,4 @@ with tab1:
             for yr_idx in range(5):
                 if yr_idx > 0: 
                     em *= (1.0 - red_rate)
-                c_cost = (em * c_tax * USD_HKD) / 1e6
-                st_ebitda = max(ebitda_input - c_cost, 10.0)
-                d = st_ebitda / debt_service
-                if d < min_d: 
-                    min_d = d
-            row.append(round(float(min_d), 2))
-        matrix_data.append(row)
-        
-    # Fixed: Convert matrix_data to a Pandas DataFrame for robust imshow rendering
-    df_heat = pd.DataFrame(
-        matrix_data,
-        index=[f"{t} USD/t" for t in tax_range],
-        columns=[f"{x}%" for x in capex_range]
-    )
-    
-    fig_heat = px.imshow(
-        df_heat,
-        labels=dict(x="Green CapEx Ratio", y="Carbon Tax Scenario", color="Min DSCR (x)"),
-        text_auto=True,
-        color_continuousscale="RdYlGn"
-    )
-    fig_heat.update_layout(
-        height=340, 
-        margin=dict(l=20, r=20, t=20, b=20),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
-    )
-    st.plotly_chart(fig_heat, use_container_width=True)
-
-# ==========================================
-# TAB 2: UNDERWRITING STRUCTURING & SUBSIDIES
-# ==========================================
-with tab2:
-    st.markdown("### 1. Sustainability-Linked Loan (SLL) Dynamic Pricing Engine")
-    
-    base_margin_bps = 250.0
-    
-    if is_fully_aligned and sbti_input >= 25.0:
-        pricing_adjustment = -15.0
-        pricing_status = "🟢 Transition Incentive Discount Applied (-15 bps)"
-    elif not is_fully_aligned or min_dscr < 1.25:
-        pricing_adjustment = 20.0
-        pricing_status = "🔴 Transition Risk Premium Applied (+20 bps)"
-    else:
-        pricing_adjustment = 0.0
-        pricing_status = "⚪ Standard Pricing (Neutral)"
-        
-    final_margin_bps = base_margin_bps + pricing_adjustment
-    annual_interest_impact = (loan_amount_input * 1e6 * (pricing_adjustment / 10000.0))
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"""
-        <div class="card">
-            <h4>Pricing Structure Summary</h4>
-            <p><b>Base Margin:</b> {base_margin_bps:.0f} bps ({base_margin_bps/100:.2f}%)</p>
-            <p><b>Adjustment:</b> {pricing_adjustment:+.0f} bps</p>
-            <p><b>Final Loan Margin:</b> <b>{final_margin_bps:.0f} bps ({final_margin_bps/100:.2f}%)</b></p>
-            <p style="color: #334155; margin-top: 0.5rem;"><b>Status:</b> {pricing_status}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div class="card">
-            <h4>Annual Financial Impact on Borrower</h4>
-            <p><b>Subject Loan Amount:</b> HKD {loan_amount_input:,.1f} M</p>
-            <p><b>Annual Interest Savings / (Cost Penalty):</b></p>
-            
+                c_cost = (em * c_tax * USD_HKD) /

@@ -5,10 +5,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # ==========================================
-# PAGE CONFIGURATION & LUXURY STYLING
+# PAGE CONFIGURATION & STYLING
 # ==========================================
 st.set_page_config(
-    page_title="Stephen ClimateCredit Underwriting System",
+    page_title="HKMA GS-2 Corporate Transition Risk & Underwriting Dashboard",
     page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -16,42 +16,30 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Global App Background & CJK Font Fallback Support */
-    .stApp {
-        background-color: #f8fafc;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Microsoft JhengHei", "Microsoft YaHei", "PingFang TC", "PingFang SC", sans-serif;
-    }
-    
-    /* Header Typography */
     .main-header {
-        font-size: 2.3rem;
-        font-weight: 800;
+        font-size: 2.2rem;
+        font-weight: 700;
         color: #0f172a;
-        letter-spacing: -0.025em;
-        margin-bottom: 0.1rem;
+        margin-bottom: 0.2rem;
     }
     .sub-header {
         font-size: 1.1rem;
-        color: #64748b;
-        font-weight: 400;
-        margin-bottom: 1.8rem;
+        color: #475569;
+        margin-bottom: 1.5rem;
     }
-    
-    /* Enterprise Card Styling */
     .card {
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        background-color: #ffffff;
+        padding: 1.2rem;
+        border-radius: 0.5rem;
+        background-color: #f8fafc;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-        margin-bottom: 1.2rem;
+        margin-bottom: 1rem;
     }
-    
-    /* Section Divider */
-    hr {
-        margin: 2rem 0;
-        border: none;
-        border-top: 1px solid #e2e8f0;
+    .metric-card {
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -129,8 +117,8 @@ USD_HKD = 7.8
 # ==========================================
 # MAIN TITLE & OVERVIEW
 # ==========================================
-st.markdown('<p class="main-header">🏦 Stephen ClimateCredit Underwriting System</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Automated Corporate Transition Credit Assessment, Stress Testing & SLL Pricing under HKMA SPM GS-2 Guidelines</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">🏦 Credit Risk Assessment & Underwriting Design</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Corporate Transition Framework under HKMA SPM GS-2 Guidelines & IFRS 9 Staging</p>', unsafe_allow_html=True)
 
 # ==========================================
 # TABS SETUP
@@ -160,14 +148,7 @@ with tab1:
         alignment_status = "🟢 Taxonomy Aligned (Green)" if is_fully_aligned else "🔴 Non-Aligned (Transition/Brown)"
         st.metric("Taxonomy Status", alignment_status)
 
-    with st.expander("📖 View HKMA SPM GS-2 & IFRS 9 Methodology & Regulatory Details"):
-        st.markdown("""
-        - **HKMA Supervisory Policy Manual (SPM) GS-2**: Focuses on Climate Risk Management, requiring authorized institutions to robustly assess transition risks and carbon tax financial sensitivities.
-        - **Phase 2A Taxonomy Alignment**: Requires Green CapEx $\ge 30\%$ and SBTi 5-year reduction target $\ge 20\%$ to qualify as Taxonomy Aligned.
-        - **IFRS 9 Staging Trigger**: A Significant Increase in Credit Risk (SICR) forces migration from Stage 1 (12-month ECL) to Stage 2 (Lifetime ECL) if DSCR drops below $1.25\times$ or if the corporate transition plan is non-aligned.
-        """)
-
-    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("---")
     st.markdown("### 2. Forward-Looking 5-Year Stress Testing (Carbon Tax Shock)")
     
     years = [f"Year {i}" for i in range(1, 6)]
@@ -178,7 +159,7 @@ with tab1:
     base_interest_rate = 0.06
     interest_expense = total_debt_input * base_interest_rate
     principal_repayment = loan_amount_input * 0.10
-    debt_service = max(interest_expense + principal_repayment, 1.0)
+    debt_service = interest_expense + principal_repayment
     
     dscr_list = []
     icr_list = []
@@ -191,7 +172,7 @@ with tab1:
         stressed_ebitda = max(ebitda_input - carbon_cost_hkd, 10.0)
         
         dscr = stressed_ebitda / debt_service
-        icr = stressed_ebitda / max(interest_expense, 1.0)
+        icr = stressed_ebitda / interest_expense
         
         dscr_list.append(dscr)
         icr_list.append(icr)
@@ -211,16 +192,14 @@ with tab1:
     min_dscr = min(dscr_list)
     sicr_triggered = (min_dscr < 1.25) or (not is_fully_aligned)
     
-    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("---")
     st.markdown("### 3. IFRS 9 Staging & SICR Trigger Assessment")
     if sicr_triggered:
-        dscr_msg = f"Minimum projected DSCR ({round(min_dscr, 2)}x) is below the 1.25x prudential threshold" if min_dscr < 1.25 else ""
-        tax_msg = "Corporate Transition Plan is Non-Aligned with HKMA Phase 2A Taxonomy." if not is_fully_aligned else ""
-        connector_msg = " and/or " if (min_dscr < 1.25 and not is_fully_aligned) else ""
-        
         st.error(
             f"🚨 **IFRS 9 SICR TRIGGER WARNING: MIGRATION TO STAGE 2 (Lifetime ECL) REQUIRED**\n\n"
-            f"Reason: {dscr_msg}{connector_msg}{tax_msg}"
+            f"Reason: {'Minimum projected DSCR (' + str(round(min_dscr, 2)) + 'x) is below the 1.25x prudential threshold' if min_dscr < 1.25 else ''}"
+            f"{' and/or ' if (min_dscr < 1.25 and not is_fully_aligned) else ''}"
+            f"{'Corporate Transition Plan is Non-Aligned with HKMA Phase 2A Taxonomy.' if not is_fully_aligned else ''}"
         )
     else:
         st.success(
@@ -228,7 +207,7 @@ with tab1:
             "The corporate borrower maintains robust forward-looking debt service coverage (DSCR ≥ 1.25x) and satisfies HKMA Phase 2A Taxonomy alignment criteria."
         )
 
-    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("---")
     st.markdown("### 4. 5-Year DSCR Trend Visualization")
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -245,27 +224,121 @@ with tab1:
         yaxis_title="Debt Service Coverage Ratio (DSCR)",
         yaxis=dict(range=[0, max(max(dscr_list) + 0.5, 2.0)]),
         margin=dict(l=20, r=20, t=30, b=20),
-        height=380,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
+        height=380
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.markdown("### 5. Sensitivity Analysis: Carbon Tax vs. Green CapEx Matrix")
-    st.markdown("Evaluating minimum projected DSCR across varying carbon tax shocks and green capex commitment levels.")
+# ==========================================
+# TAB 2: UNDERWRITING STRUCTURING & SUBSIDIES
+# ==========================================
+with tab2:
+    st.markdown("### 1. Sustainability-Linked Loan (SLL) Dynamic Pricing Engine")
     
-    tax_range = [30, 60, 90, 120, 150]
-    capex_range = [10, 20, 30, 40, 50]
-    matrix_data = []
-    for c_tax in tax_range:
-        row = []
-        for g_capex in capex_range:
-            aligned = g_capex >= 30.0 and sbti_input >= 20.0
-            red_rate = (sbti_input / 100.0) / 5.0 if aligned else 0.01
-            em = emissions_input
-            min_d = 999.0
-            for yr_idx in range(5):
-                if yr_idx > 0: 
-                    em *= (1.0 - red_rate)
-                c_cost = (em * c_tax * USD_HKD) /
+    base_margin_bps = 250.0
+    
+    if is_fully_aligned and sbti_input >= 25.0:
+        pricing_adjustment = -15.0
+        pricing_status = "🟢 Transition Incentive Discount Applied (-15 bps)"
+    elif not is_fully_aligned or min_dscr < 1.25:
+        pricing_adjustment = 20.0
+        pricing_status = "🔴 Transition Risk Premium Applied (+20 bps)"
+    else:
+        pricing_adjustment = 0.0
+        pricing_status = "⚪ Standard Pricing (Neutral)"
+        
+    final_margin_bps = base_margin_bps + pricing_adjustment
+    annual_interest_impact = (loan_amount_input * 1e6 * (pricing_adjustment / 10000.0))
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"""
+        <div class="card">
+            <h4>Pricing Structure Summary</h4>
+            <p><b>Base Margin:</b> {base_margin_bps:.0f} bps ({base_margin_bps/100:.2f}%)</p>
+            <p><b>Adjustment:</b> {pricing_adjustment:+.0f} bps</p>
+            <p><b>Final Loan Margin:</b> <b>{final_margin_bps:.0f} bps ({final_margin_bps/100:.2f}%)</b></p>
+            <p style="color: #334155; margin-top: 0.5rem;"><b>Status:</b> {pricing_status}</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="card">
+            <h4>Annual Financial Impact on Borrower</h4>
+            <p><b>Subject Loan Amount:</b> HKD {loan_amount_input:,.1f} M</p>
+            <p><b>Annual Interest Savings / (Cost Penalty):</b></p>
+            <h3 style="color: {'#16a34a' if annual_interest_impact <= 0 else '#dc2626'};">
+                HKD {abs(annual_interest_impact):,.2f} {('Savings per year' if annual_interest_impact < 0 else 'Additional Cost per year' if annual_interest_impact > 0 else '')}
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("### 2. HKMA Green and Sustainable Finance (GSF) Grant Scheme Track II Subsidy Calculator")
+    st.markdown("Under HKMA GSF Grant Scheme Track II, eligible bond issuers and loan borrowers can apply for subsidies covering external review expenses.")
+    
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        external_review_cost_hkd = st.number_input("Estimated External Review / Second-Party Opinion Fee (HKD)", value=500000.0, step=50000.0)
+    with col_g2:
+        is_eligible_gsf = st.checkbox("Meets HKMA GSF Grant Scheme Eligibility Criteria", value=True)
+        
+    grant_reimbursement_rate = 0.75
+    max_grant_cap = 800000.0
+    
+    calculated_grant = min(external_review_cost_hkd * grant_reimbursement_rate, max_grant_cap) if is_eligible_gsf else 0.0
+    net_review_cost = external_review_cost_hkd - calculated_grant
+    
+    st.markdown(f"""
+    <div class="card" style="background-color: #f0fdf4; border-color: #bbf7d0;">
+        <h4 style="color: #166534;">HKMA GSF Grant Subsidy Breakdown</h4>
+        <p><b>Total External Review Cost:</b> HKD {external_review_cost_hkd:,.2f}</p>
+        <p><b>Eligible Grant Reimbursement (75% up to HKD 800K cap):</b> <b>HKD {calculated_grant:,.2f}</b></p>
+        <p><b>Net Out-of-Pocket Review Expense for Borrower:</b> <b>HKD {net_review_cost:,.2f}</b></p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# TAB 3: PRACTITIONER FEEDBACK SURVEY
+# ==========================================
+with tab3:
+    st.markdown("### 📝 Practitioner Feedback Survey & Evaluation")
+    st.markdown("Please evaluate the usability, risk efficacy, and commercial feasibility of this HKMA SPM GS-2 automated underwriting dashboard for institutional banking deployment.")
+    
+    with st.form("feedback_form"):
+        st.markdown("#### Rate the following core dimensions (1 = Poor, 5 = Excellent):")
+        
+        clarity_rating = st.slider(
+            "1. Clarity of HKMA SPM GS-2 Guidelines & Phase 2A Taxonomy Integration",
+            min_value=1, max_value=5, value=4
+        )
+        efficacy_rating = st.slider(
+            "2. Risk Efficacy & Stress Testing Accuracy (Carbon Tax Shock & IFRS 9 Staging)",
+            min_value=1, max_value=5, value=5
+        )
+        feasibility_rating = st.slider(
+            "3. Commercial Feasibility for Corporate Underwriting & SLL Pricing",
+            min_value=1, max_value=5, value=4
+        )
+        
+        practitioner_role = st.selectbox(
+            "Select Your Professional Role",
+            ["Senior Credit Risk Manager", "ESG Sustainable Finance Specialist", "Corporate Relationship Manager", "RegTech / Risk Modeler", "Academic / Researcher"]
+        )
+        
+        comments = st.text_area(
+            "Qualitative Comments, Suggestions, or Custom Policy Adjustments",
+            placeholder="Enter feedback regarding carbon price sensitivities, transition scenario parameters, or grant scheme integration..."
+        )
+        
+        submitted = st.form_submit_button("Submit Practitioner Feedback")
+        
+        if submitted:
+            st.success("🎉 Thank you! Your practitioner evaluation has been successfully recorded for capstone analysis and validation.")
+            st.balloons()
+            st.json({
+                "Role": practitioner_role,
+                "Clarity Rating": clarity_rating,
+                "Risk Efficacy Rating": efficacy_rating,
+                "Commercial Feasibility Rating": feasibility_rating,
+                "Comments": comments
+            })

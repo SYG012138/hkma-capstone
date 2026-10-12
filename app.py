@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 # PAGE CONFIGURATION & LUXURY STYLING
 # ==========================================
 st.set_page_config(
-    page_title="HKMA GS-2 Corporate Transition & Underwriting Platform",
+    page_title="Stephen ClimateCredit Underwriting System",
     page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -129,8 +129,8 @@ USD_HKD = 7.8
 # ==========================================
 # MAIN TITLE & OVERVIEW
 # ==========================================
-st.markdown('<p class="main-header">🏦 Corporate Transition Risk & Underwriting Platform</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Automated Credit Assessment, Stress Testing & SLL Pricing under HKMA SPM GS-2 Guidelines</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">🏦 Stephen ClimateCredit Underwriting System</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Automated Corporate Transition Credit Assessment, Stress Testing & SLL Pricing under HKMA SPM GS-2 Guidelines</p>', unsafe_allow_html=True)
 
 # ==========================================
 # TABS SETUP
@@ -364,7 +364,7 @@ with tab2:
     
     memo_content = f"""==================================================
 CREDIT ASSESSMENT & UNDERWRITING MEMORANDUM
-Project: HKMA SPM GS-2 Corporate Transition
+System: Stephen ClimateCredit Underwriting System
 Company: {selected_company}
 ==================================================
 

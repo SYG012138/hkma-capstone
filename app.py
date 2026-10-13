@@ -3,7 +3,6 @@ from io import BytesIO
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -216,7 +215,6 @@ def build_credit_memo_excel(
 # ==========================================
 st.sidebar.markdown("## ⚙️ Control Panel")
 selected_company = st.sidebar.selectbox("Select Company Case", list(COMPANY_DATA.keys()))
-
 defaults = COMPANY_DATA[selected_company]
 
 st.sidebar.markdown("---")
@@ -232,7 +230,6 @@ emissions_input = st.sidebar.number_input("Scope 1 & 2 Emissions (tCO2e)", min_v
 sbti_input = st.sidebar.slider("SBTi 5-Year Reduction Target (%)", 0.0, 60.0, defaults["sbti_target"], 1.0)
 green_capex_input = st.sidebar.slider("Green CapEx Ratio (%)", 0.0, 100.0, defaults["green_capex"], 1.0)
 carbon_tax_input = st.sidebar.slider("Carbon Tax Shock Scenario (USD/ton)", 0.0, 200.0, defaults["carbon_tax"], 5.0)
-
 USD_HKD = 7.8
 
 # ==========================================
@@ -268,7 +265,7 @@ with tab1:
     is_capex_aligned = green_capex_input >= 30.0
     is_sbti_aligned = sbti_input >= 20.0
     is_fully_aligned = is_capex_aligned and is_sbti_aligned
-    
+
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Green CapEx Benchmark", f"{green_capex_input}%", "Target: ≥ 30%", delta_color="normal" if is_capex_aligned else "inverse")
@@ -542,7 +539,7 @@ with tab2:
     """, unsafe_allow_html=True)
 
 # ==========================================
-# TAB 3: PRACTITIONER FEEDBACK SURVEY
+# TAB 3: PRACTITIONER FEEDBACK SURVEY & DASHBOARD
 # ==========================================
 with tab3:
     st.markdown("### 📝 Practitioner Feedback Survey & Evaluation")

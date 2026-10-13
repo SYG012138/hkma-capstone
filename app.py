@@ -1,4 +1,7 @@
 from io import BytesIO
+from email.message import EmailMessage
+from html import escape
+import smtplib
 
 import streamlit as st
 import pandas as pd
@@ -8,7 +11,10 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from streamlit.errors import StreamlitSecretNotFoundError
 
 # ==========================================
 # PAGE CONFIGURATION & STYLING
@@ -147,9 +153,13 @@ def build_credit_memo_pdf(
         bottomMargin=18 * mm,
     )
     styles = getSampleStyleSheet()
+    if "STSong-Light" not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    for style_name in ("Title", "Heading2", "BodyText"):
+        styles[style_name].fontName = "STSong-Light"
     story = [
         Paragraph("Credit Review Memorandum", styles["Title"]),
-        Paragraph(f"Company: {company}", styles["Heading2"]),
+        Paragraph(f"Company: {escape(company)}", styles["Heading2"]),
         Paragraph(
             "Illustrative decision-support output. Validate assumptions and "
             "apply the institution's approved credit and IFRS 9 policies.",
@@ -168,7 +178,7 @@ def build_credit_memo_pdf(
         values = [
             [Paragraph(str(value), styles["BodyText"]) for value in frame.columns],
             *[
-                [Paragraph(str(value), styles["BodyText"]) for value in row]
+                [Paragraph(escape(str(value)), styles["BodyText"]) for value in row]
                 for row in frame.fillna("N/A").astype(str).values.tolist()
             ],
         ]
@@ -195,6 +205,89 @@ def build_credit_memo_pdf(
     return buffer.getvalue()
 
 
+def build_feedback_pdf(feedback: dict[str, str | int]) -> bytes:
+    buffer = BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=18 * mm,
+    )
+    styles = getSampleStyleSheet()
+    if "STSong-Light" not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    for style_name in ("Title", "Heading2", "BodyText"):
+        styles[style_name].fontName = "STSong-Light"
+
+    story = [
+        Paragraph("Practitioner Feedback Survey", styles["Title"]),
+        Spacer(1, 5 * mm),
+    ]
+    for label in (
+        "Company Name",
+        "Main Business",
+        "Professional Role",
+        "Clarity Rating",
+        "Risk Efficacy Rating",
+        "Commercial Feasibility Rating",
+        "Comments",
+    ):
+        value = escape(str(feedback[label])).replace("\n", "<br/>")
+        story.append(Paragraph(f"<b>{label}:</b> {value or 'N/A'}", styles["BodyText"]))
+        story.append(Spacer(1, 3 * mm))
+    document.build(story)
+    return buffer.getvalue()
+
+
+def send_feedback_email(
+    pdf_bytes: bytes,
+    company_name: str,
+) -> None:
+    try:
+        email_settings = st.secrets["email"]
+    except (KeyError, StreamlitSecretNotFoundError):
+        raise RuntimeError(
+            "Email is not configured. Add the [email] SMTP settings in "
+            "Streamlit Cloud > App settings > Secrets."
+        ) from None
+
+    required_settings = ("smtp_host", "smtp_port", "smtp_username", "smtp_password")
+    missing_settings = [key for key in required_settings if not email_settings.get(key)]
+    if missing_settings:
+        raise RuntimeError(
+            "Email is not configured. Add these missing settings under [email] "
+            f"in Streamlit Cloud Secrets: {', '.join(missing_settings)}."
+        )
+
+    smtp_host = str(email_settings["smtp_host"])
+    smtp_port = int(email_settings["smtp_port"])
+    smtp_username = str(email_settings["smtp_username"])
+    smtp_password = str(email_settings["smtp_password"])
+    from_email = str(email_settings.get("from_email", smtp_username))
+
+    message = EmailMessage()
+    safe_company_name = " ".join(company_name.split())[:100]
+    message["Subject"] = f"Practitioner Feedback Survey - {safe_company_name}"
+    message["From"] = from_email
+    message["To"] = "stephenyeungkm@gmail.com"
+    message.set_content(
+        f"A practitioner feedback survey was submitted for {company_name}. "
+        "The completed survey is attached as a PDF."
+    )
+    message.add_attachment(
+        pdf_bytes,
+        maintype="application",
+        subtype="pdf",
+        filename="practitioner_feedback.pdf",
+    )
+
+    with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=20) as smtp:
+        smtp.login(smtp_username, smtp_password)
+        smtp.send_message(message)
+
+
 def build_credit_memo_excel(
     risk_summary: pd.DataFrame,
     stress_test: pd.DataFrame,
@@ -216,6 +309,17 @@ def build_credit_memo_excel(
 st.sidebar.markdown("## ⚙️ Control Panel")
 selected_company = st.sidebar.selectbox("Select Company Case", list(COMPANY_DATA.keys()))
 defaults = COMPANY_DATA[selected_company]
+if selected_company == "Custom Input Mode":
+    custom_company_name = st.sidebar.text_input(
+        "Company Name (English or Chinese)",
+        placeholder="Enter the company name",
+        key="custom_company_name",
+    ).strip()
+    company_name = custom_company_name or "Custom Input Mode"
+    if not custom_company_name:
+        st.sidebar.caption("Enter a company name to enable Credit Memo downloads.")
+else:
+    company_name = selected_company
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 📊 Financial Inputs (HKD M)")
@@ -544,45 +648,109 @@ with tab2:
 with tab3:
     st.markdown("### 📝 Practitioner Feedback Survey & Evaluation")
     st.markdown("Please evaluate the usability, risk efficacy, and commercial feasibility of this HKMA SPM GS-2 automated underwriting dashboard for institutional banking deployment.")
-    
-    with st.form("feedback_form"):
-        st.markdown("#### Rate the following core dimensions (1 = Poor, 5 = Excellent):")
-        
-        clarity_rating = st.slider(
-            "1. Clarity of HKMA SPM GS-2 Guidelines & Phase 2A Taxonomy Integration",
-            min_value=1, max_value=5, value=4
+    with st.expander("Gmail PDF email delivery setup"):
+        st.markdown(
+            "Create a Google App Password with 2-Step Verification enabled, then add these "
+            "settings in Streamlit Cloud under **App settings → Secrets**. The app sends "
+            "submitted survey PDFs to **stephenyeungkm@gmail.com**."
         )
-        efficacy_rating = st.slider(
-            "2. Risk Efficacy & Stress Testing Accuracy (Carbon Tax Shock & IFRS 9 Staging)",
-            min_value=1, max_value=5, value=5
+        st.code(
+            '[email]\n'
+            'smtp_host = "smtp.gmail.com"\n'
+            'smtp_port = 465\n'
+            'smtp_username = "your-gmail-address@gmail.com"\n'
+            'smtp_password = "your-google-app-password"',
+            language="toml",
         )
-        feasibility_rating = st.slider(
-            "3. Commercial Feasibility for Corporate Underwriting & SLL Pricing",
-            min_value=1, max_value=5, value=4
+        st.warning(
+            "Never commit the App Password to GitHub or enter it in the survey. "
+            "Create it at https://myaccount.google.com/apppasswords."
         )
-        
-        practitioner_role = st.selectbox(
-            "Select Your Professional Role",
-            ["Senior Credit Risk Manager", "ESG Sustainable Finance Specialist", "Corporate Relationship Manager", "RegTech / Risk Modeler", "Academic / Researcher"]
+
+    feedback_company_name = st.text_input(
+        "Company Name (English or Chinese)",
+        key="feedback_company_name",
+    ).strip()
+    feedback_main_business = st.text_input(
+        "Main Business",
+        key="feedback_main_business",
+    ).strip()
+    if not feedback_company_name or not feedback_main_business:
+        st.info("Enter the company name and main business above before completing the survey.")
+    else:
+        st.info(
+            "After submission, a PDF copy of this survey will be emailed to "
+            "stephenyeungkm@gmail.com when email delivery is configured. "
+            "Please do not include personal or confidential information."
         )
-        
-        comments = st.text_area(
-            "Qualitative Comments, Suggestions, or Custom Policy Adjustments",
-            placeholder="Enter feedback regarding carbon price sensitivities, transition scenario parameters, or grant scheme integration..."
-        )
-        
-        submitted = st.form_submit_button("Submit Practitioner Feedback")
-        
-        if submitted:
-            st.session_state["practitioner_feedback"].append({
-                "Role": practitioner_role,
-                "Clarity Rating": clarity_rating,
-                "Risk Efficacy Rating": efficacy_rating,
-                "Commercial Feasibility Rating": feasibility_rating,
-                "Comments": comments.strip(),
-            })
-            st.success("🎉 Thank you! Your practitioner evaluation has been successfully recorded for capstone analysis and validation.")
-            st.balloons()
+        with st.form("feedback_form"):
+            st.markdown("#### Rate the following core dimensions (1 = Poor, 5 = Excellent):")
+
+            clarity_rating = st.slider(
+                "1. Clarity of HKMA SPM GS-2 Guidelines & Phase 2A Taxonomy Integration",
+                min_value=1, max_value=5, value=4
+            )
+            efficacy_rating = st.slider(
+                "2. Risk Efficacy & Stress Testing Accuracy (Carbon Tax Shock & IFRS 9 Staging)",
+                min_value=1, max_value=5, value=5
+            )
+            feasibility_rating = st.slider(
+                "3. Commercial Feasibility for Corporate Underwriting & SLL Pricing",
+                min_value=1, max_value=5, value=4
+            )
+
+            practitioner_role = st.selectbox(
+                "Select Your Professional Role",
+                ["Senior Credit Risk Manager", "ESG Sustainable Finance Specialist", "Corporate Relationship Manager", "RegTech / Risk Modeler", "Academic / Researcher"]
+            )
+
+            comments = st.text_area(
+                "Qualitative Comments, Suggestions, or Custom Policy Adjustments",
+                placeholder="Enter feedback regarding carbon price sensitivities, transition scenario parameters, or grant scheme integration..."
+            )
+
+            submitted = st.form_submit_button("Submit Practitioner Feedback")
+
+            if submitted:
+                submitted_feedback: dict[str, str | int] = {
+                    "Company Name": feedback_company_name,
+                    "Main Business": feedback_main_business,
+                    "Role": practitioner_role,
+                    "Professional Role": practitioner_role,
+                    "Clarity Rating": clarity_rating,
+                    "Risk Efficacy Rating": efficacy_rating,
+                    "Commercial Feasibility Rating": feasibility_rating,
+                    "Comments": comments.strip(),
+                }
+                feedback_pdf = build_feedback_pdf(submitted_feedback)
+                st.session_state["practitioner_feedback"].append(submitted_feedback)
+                st.session_state["latest_feedback_pdf"] = feedback_pdf
+                feedback_filename = "".join(
+                    character
+                    for character in feedback_company_name
+                    if character.isalnum() or character in "-_"
+                )[:40]
+                st.session_state["latest_feedback_filename"] = (
+                    f"feedback_{feedback_filename or 'survey'}.pdf"
+                )
+                st.success("Your practitioner evaluation has been recorded.")
+                try:
+                    send_feedback_email(feedback_pdf, feedback_company_name)
+                except RuntimeError as exc:
+                    st.error(str(exc))
+                except (smtplib.SMTPException, OSError, ValueError) as exc:
+                    st.error(f"Email delivery failed: {exc}")
+                else:
+                    st.success("A PDF copy of this feedback was emailed to stephenyeungkm@gmail.com.")
+                st.balloons()
+        if "latest_feedback_pdf" in st.session_state:
+            st.download_button(
+                "Download Feedback Survey (PDF)",
+                data=st.session_state["latest_feedback_pdf"],
+                file_name=st.session_state["latest_feedback_filename"],
+                mime="application/pdf",
+                key="feedback_pdf_download",
+            )
     with st.expander("📖 View HKMA SPM GS-2 calculation methodology and formulas"):
         st.markdown(
             "This survey collects feedback for the prototype. Responses are stored temporarily "
@@ -610,7 +778,7 @@ if st.session_state["practitioner_feedback"]:
 
 
 risk_summary = pd.DataFrame([{
-    "Company": selected_company,
+    "Company": company_name,
     "Revenue (HKD M)": rev_input,
     "EBITDA (HKD M)": ebitda_input,
     "Total Debt (HKD M)": total_debt_input,
@@ -642,10 +810,11 @@ st.sidebar.markdown("### 📄 Credit Memo Export")
 st.sidebar.download_button(
     "Download Credit Memo (PDF)",
     data=build_credit_memo_pdf(
-    selected_company, risk_summary, df_sim.round(2), pricing_summary, grant_summary
+        company_name, risk_summary, df_sim.round(2), pricing_summary, grant_summary
     ),
     file_name="credit_memo.pdf",
     mime="application/pdf",
+    disabled=selected_company == "Custom Input Mode" and not custom_company_name,
     use_container_width=True,
 )
 st.sidebar.download_button(
@@ -653,5 +822,6 @@ st.sidebar.download_button(
     data=build_credit_memo_excel(risk_summary, df_sim, pricing_summary, grant_summary),
     file_name="credit_memo.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    disabled=selected_company == "Custom Input Mode" and not custom_company_name,
     use_container_width=True,
 )
